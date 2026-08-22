@@ -1,5 +1,5 @@
-import ScannerOCR from "@/components/recibos/ScannerOCR";
+   import ScannerOCR from "@/components/recibos/ScannerOCR";
 
-export default function RecibosPage() {
-  return <ScannerOCR />;
-}
+   export default function RecibosPage() {
+     return <ScannerOCR onGuardado={() => {}} />;
+   }
