@@ -144,7 +144,7 @@ create table public.transacciones (
     fecha           date not null,
     origen          text not null default 'manual'
                     check (origen in ('manual','xml_sat','ocr_ticket','open_banking')),
-    recibo_id       uuid references public.recibos(id) on delete set null,
+    recibo_id       uuid,                                -- FK real se agrega más abajo, después de crear `recibos`
     creado_en       timestamptz not null default now()
 );
 
@@ -272,3 +272,32 @@ create policy "acceso_propio_servicios" on public.servicios_recurrentes
 
 create policy "acceso_propio_alertas" on public.alertas
     for all using (auth.uid() = usuario_id);
+
+-- Tablas con RLS agregado tras la advertencia del validador de Supabase.
+alter table public.simulaciones_deuda enable row level security;
+alter table public.compras_msi enable row level security;
+alter table public.msi_cuotas enable row level security;
+alter table public.categorias enable row level security;
+alter table public.pagos_servicio enable row level security;
+
+create policy "acceso_propio_simulaciones" on public.simulaciones_deuda
+    for all using (auth.uid() = usuario_id);
+
+create policy "acceso_propio_compras_msi" on public.compras_msi
+    for all using (auth.uid() = usuario_id);
+
+-- msi_cuotas no tiene usuario_id propio: hereda el dueño a través de compras_msi.
+create policy "acceso_propio_msi_cuotas" on public.msi_cuotas
+    for all using (
+        auth.uid() = (select usuario_id from public.compras_msi where id = compra_msi_id)
+    );
+
+-- categorias: las globales (usuario_id null) las ve todo mundo; las propias, solo su dueño.
+create policy "acceso_categorias" on public.categorias
+    for all using (usuario_id is null or auth.uid() = usuario_id);
+
+-- pagos_servicio no tiene usuario_id propio: hereda el dueño a través de servicios_recurrentes.
+create policy "acceso_propio_pagos_servicio" on public.pagos_servicio
+    for all using (
+        auth.uid() = (select usuario_id from public.servicios_recurrentes where id = servicio_id)
+    );
