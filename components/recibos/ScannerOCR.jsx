@@ -14,7 +14,7 @@ import React, { useRef, useState } from "react";
 
 const CATEGORIAS = ["comida", "transporte", "super", "salud", "entretenimiento", "otro"];
 
-export default function ScannerOCR({ onGuardado }) {
+export default function ScannerOCR({ onGuardado = () => {} }) {
   const inputRef = useRef(null);
   const [paso, setPaso] = useState("captura");
   const [previewUrl, setPreviewUrl] = useState(null);
