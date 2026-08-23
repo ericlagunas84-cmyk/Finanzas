@@ -1,4 +1,3 @@
-"use client";
 import React, { useState, useTransition } from "react";
 import {
   iniciarSesionConEmail,
@@ -38,8 +37,15 @@ export default function LoginScreen() {
         // Si no hay error, la propia Server Action ya hizo redirect() —
         // no hay nada más que hacer aquí.
       } catch (err) {
-        // Mostramos cualquier excepción real (de red, de Supabase, etc.)
-        // en vez de fallar en silencio — esto es temporal para depurar.
+        // Next.js implementa redirect() lanzando un error especial con un
+        // "digest" que empieza con NEXT_REDIRECT — es la señal interna que
+        // usa el framework para navegar. Si lo atrapamos aquí como si fuera
+        // un error real, rompemos la redirección. Hay que dejarlo pasar.
+        if (err?.digest?.startsWith("NEXT_REDIRECT")) {
+          throw err;
+        }
+        // Cualquier otro error sí es real (de red, de Supabase, etc.) y lo
+        // mostramos en pantalla en vez de fallar en silencio.
         setError(`Error inesperado: ${err?.message || String(err)}`);
       }
     });
