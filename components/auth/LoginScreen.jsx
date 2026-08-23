@@ -29,12 +29,18 @@ export default function LoginScreen() {
     const accion = modo === "login" ? iniciarSesionConEmail : registrarseConEmail;
 
     startTransition(async () => {
-      const resultado = await accion(formData);
-      if (resultado?.error) {
-        setError(resultado.error);
+      try {
+        const resultado = await accion(formData);
+        if (resultado?.error) {
+          setError(resultado.error);
+        }
+        // Si no hay error, la propia Server Action ya hizo redirect() —
+        // no hay nada más que hacer aquí.
+      } catch (err) {
+        // Mostramos cualquier excepción real (de red, de Supabase, etc.)
+        // en vez de fallar en silencio — esto es temporal para depurar.
+        setError(`Error inesperado: ${err?.message || String(err)}`);
       }
-      // Si no hay error, la propia Server Action ya hizo redirect() —
-      // no hay nada más que hacer aquí.
     });
   }
 
