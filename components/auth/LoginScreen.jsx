@@ -1,5 +1,4 @@
 import React, { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
 import {
   iniciarSesionConEmail,
   registrarseConEmail,
@@ -10,26 +9,34 @@ import {
  * LoginScreen — migrado al sistema "Emerald Finance". Mismo verde primario,
  * misma tipografía Hanken Grotesk/JetBrains Mono, mismos radios y spacing.
  *
- * Conectado a los Server Actions reales de app/(auth)/actions.ts:
- * - El formulario de correo usa useFormState para capturar el {error} que
- *   devuelve la acción (login/registro exitoso hace redirect() del lado
- *   del servidor, así que no hay nada que manejar aquí en ese caso).
- * - Los botones OAuth llaman la acción directamente vía onClick.
+ * Conectado a los Server Actions reales de app/(auth)/actions.ts mediante
+ * un onSubmit manual (en vez de useFormState) para mantener el flujo simple
+ * y fácil de depurar: se arma el FormData a mano, se llama la acción, y si
+ * regresa {error} lo mostramos; si tiene éxito, la propia acción hace
+ * redirect() del lado del servidor.
  */
-
-const ESTADO_INICIAL = { error: undefined };
 
 export default function LoginScreen() {
   const [modo, setModo] = useState("login");
   const [mostrarPassword, setMostrarPassword] = useState(false);
-  const [isPendingOAuth, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  const accionFormulario = modo === "login" ? iniciarSesionConEmail : registrarseConEmail;
-  const [estado, formAction, isPending] = useFormState(
-    async (_prevState, formData) => (await accionFormulario(formData)) ?? ESTADO_INICIAL,
-    ESTADO_INICIAL
-  );
-  const error = estado?.error;
+  function manejarEnvio(e) {
+    e.preventDefault();
+    setError("");
+    const formData = new FormData(e.currentTarget);
+    const accion = modo === "login" ? iniciarSesionConEmail : registrarseConEmail;
+
+    startTransition(async () => {
+      const resultado = await accion(formData);
+      if (resultado?.error) {
+        setError(resultado.error);
+      }
+      // Si no hay error, la propia Server Action ya hizo redirect() —
+      // no hay nada más que hacer aquí.
+    });
+  }
 
   function manejarOAuth(proveedor) {
     startTransition(() => {
@@ -60,7 +67,7 @@ export default function LoginScreen() {
       <div className="space-y-2.5">
         <button
           onClick={() => manejarOAuth("google")}
-          disabled={isPendingOAuth}
+          disabled={isPending}
           className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-[18px]">g_mobiledata</span>
@@ -68,7 +75,7 @@ export default function LoginScreen() {
         </button>
         <button
           onClick={() => manejarOAuth("apple")}
-          disabled={isPendingOAuth}
+          disabled={isPending}
           className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-[18px]">apple</span>
@@ -84,7 +91,7 @@ export default function LoginScreen() {
       </div>
 
       {/* Formulario */}
-      <form action={formAction} className="space-y-3">
+      <form onSubmit={manejarEnvio} className="space-y-3">
         {modo === "registro" && (
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[18px]">
