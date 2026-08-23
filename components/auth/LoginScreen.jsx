@@ -1,22 +1,39 @@
-"use client";
 import React, { useState, useTransition } from "react";
+import { useFormState } from "react-dom";
+import {
+  iniciarSesionConEmail,
+  registrarseConEmail,
+  iniciarSesionConProveedor,
+} from "@/app/(auth)/actions";
 
 /**
  * LoginScreen — migrado al sistema "Emerald Finance". Mismo verde primario,
  * misma tipografía Hanken Grotesk/JetBrains Mono, mismos radios y spacing.
+ *
+ * Conectado a los Server Actions reales de app/(auth)/actions.ts:
+ * - El formulario de correo usa useFormState para capturar el {error} que
+ *   devuelve la acción (login/registro exitoso hace redirect() del lado
+ *   del servidor, así que no hay nada que manejar aquí en ese caso).
+ * - Los botones OAuth llaman la acción directamente vía onClick.
  */
+
+const ESTADO_INICIAL = { error: undefined };
 
 export default function LoginScreen() {
   const [modo, setModo] = useState("login");
   const [mostrarPassword, setMostrarPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isPendingOAuth, startTransition] = useTransition();
 
-  function manejarEnvio(e) {
-    e.preventDefault();
-    setError("");
+  const accionFormulario = modo === "login" ? iniciarSesionConEmail : registrarseConEmail;
+  const [estado, formAction, isPending] = useFormState(
+    async (_prevState, formData) => (await accionFormulario(formData)) ?? ESTADO_INICIAL,
+    ESTADO_INICIAL
+  );
+  const error = estado?.error;
+
+  function manejarOAuth(proveedor) {
     startTransition(() => {
-      // Aquí se invoca el Server Action real: iniciarSesionConEmail / registrarseConEmail
+      iniciarSesionConProveedor(proveedor);
     });
   }
 
@@ -41,11 +58,19 @@ export default function LoginScreen() {
 
       {/* Botones OAuth */}
       <div className="space-y-2.5">
-        <button className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium">
+        <button
+          onClick={() => manejarOAuth("google")}
+          disabled={isPendingOAuth}
+          className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium disabled:opacity-50"
+        >
           <span className="material-symbols-outlined text-[18px]">g_mobiledata</span>
           Continuar con Google
         </button>
-        <button className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium">
+        <button
+          onClick={() => manejarOAuth("apple")}
+          disabled={isPendingOAuth}
+          className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest py-3 text-sm font-medium disabled:opacity-50"
+        >
           <span className="material-symbols-outlined text-[18px]">apple</span>
           Continuar con Apple
         </button>
@@ -59,7 +84,7 @@ export default function LoginScreen() {
       </div>
 
       {/* Formulario */}
-      <form onSubmit={manejarEnvio} className="space-y-3">
+      <form action={formAction} className="space-y-3">
         {modo === "registro" && (
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[18px]">
@@ -130,6 +155,9 @@ export default function LoginScreen() {
           {isPending ? "Un momento…" : modo === "login" ? "Entrar" : "Crear cuenta"}
           {!isPending && <span className="material-symbols-outlined text-[16px]">arrow_forward</span>}
         </button>
+        <p className="text-[10.5px] text-on-surface-variant/70 text-center leading-relaxed">
+          Al continuar aceptas nuestros Términos y Aviso de Privacidad.
+        </p>
       </form>
 
       <div className="flex-1 flex items-end justify-center pb-8 pt-6">
